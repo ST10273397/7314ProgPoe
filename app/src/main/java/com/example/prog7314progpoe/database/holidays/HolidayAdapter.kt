@@ -1,14 +1,13 @@
-package com.example.prog7314progpoe
-
+package com.example.prog7314progpoe.database.holidays
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.prog7314progpoe.R
 
-
-class HolidayAdapter(private val holidays: List<UserModel.Holiday>) :
+class HolidayAdapter(private val holidays: List<HolidayModel>?) :
     RecyclerView.Adapter<HolidayAdapter.HolidayViewHolder>() {
 
     class HolidayViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -24,11 +23,11 @@ class HolidayAdapter(private val holidays: List<UserModel.Holiday>) :
     }
 
     override fun onBindViewHolder(holder: HolidayViewHolder, position: Int) {
-        val holiday = holidays[position]
-        holder.holidayName.text = holiday.name
-        holder.holidayDate.text = holiday.date.iso
-        holder.holidayType.text = holiday.type.joinToString(", ")
+        val holiday = holidays?.get(position)
+        holder.holidayName.text = holiday?.name
+        holder.holidayDate.text = holiday?.date?.iso
+        holder.holidayType.text = holiday?.type?.joinToString(", ")
     }
 
-    override fun getItemCount(): Int = holidays.size
+    override fun getItemCount(): Int = (holidays?.size?: Int) as Int
 }

@@ -1,6 +1,6 @@
-package com.example.prog7314progpoe
+package com.example.prog7314progpoe.api
 
-
+import com.example.prog7314progpoe.database.calendar.CalendarModel
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -14,5 +14,5 @@ interface CalendarificApi {
         @Query("day") day: Int? = null,     // optional
         @Query("type") type: String? = null,// optional: "national", "religious", etc.
         @Query("location") location: String? = null // optional: e.g. "us-ny"
-    ): UserModel.HolidayResponse
+    ): CalendarModel.CalendarResponse
 }

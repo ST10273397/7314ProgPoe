@@ -1,53 +1,28 @@
 package com.example.prog7314progpoe
 
-
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.example.prog7314progpoe.reglogin.LoginActivity
+import com.example.prog7314progpoe.reglogin.RegisterActivity
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var recyclerView: RecyclerView
-    private val apiKey = "ZRjKfqyaZbAy9ZaKFHdmudPaFuN2hEPI"
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        recyclerView = findViewById(R.id.holidaysRecyclerView)
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        val btnLogin = findViewById<Button>(R.id.btnLogin)
+        val btnSignUp = findViewById<Button>(R.id.btnSignUp)
 
-        fetchHolidays()
-    }
+        btnLogin.setOnClickListener {
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+        }
 
-    private fun fetchHolidays() {
-        GlobalScope.launch(Dispatchers.IO) {
-            try {
-                val response = ApiClient.api.getHolidays(
-                    apiKey = apiKey,
-                    country = "IN",
-                    year = 2025,
-                    month = 3 // Example: March
-                )
-
-                val holidays = response.response.holidays
-
-                // Update UI (must be on Main thread)
-                withContext(Dispatchers.Main) {
-                    recyclerView.adapter = HolidayAdapter(holidays)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+        btnSignUp.setOnClickListener {
+            val intent = Intent(this, RegisterActivity::class.java)
+            startActivity(intent)
         }
     }
 }
-
-
-
