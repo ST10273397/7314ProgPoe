@@ -1,19 +1,43 @@
 package com.example.prog7314progpoe.reglogin
 
+import android.content.ContentValues.TAG
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.Credential
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.ClearCredentialException
+import androidx.lifecycle.lifecycleScope
 import com.example.prog7314progpoe.CalendarActivity
 import com.example.prog7314progpoe.R
 import com.example.prog7314progpoe.database.user.FirebaseUserDbHelper
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.auth
+import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
+    private lateinit var auth: FirebaseAuth
+
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        auth = Firebase.auth
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 
@@ -22,6 +46,7 @@ class LoginActivity : AppCompatActivity() {
         val loginBtn = findViewById<Button>(R.id.btnLogin)
         val signUpLink = findViewById<TextView>(R.id.tvSignUp)
 
+        // Email/Password login
         loginBtn.setOnClickListener {
             val email = emailEt.text.toString().trim()
             val password = passwordEt.text.toString().trim()
@@ -34,14 +59,41 @@ class LoginActivity : AppCompatActivity() {
             FirebaseUserDbHelper.loginUser(email, password) { success, message ->
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                 if (success) {
-                    startActivity(Intent(this, CalendarActivity::class.java))
-                    finish()
+                    updateUI(auth.currentUser)
                 }
             }
         }
 
+        // Navigate to RegisterActivity
         signUpLink.setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
+        }
+    }
+
+    /* Sign out completely - Can use this sign out in the settings.
+    private fun signOut() {
+        auth.signOut()
+        lifecycleScope.launch {
+            try {
+                val clearRequest = ClearCredentialStateRequest()
+                credentialManager.clearCredentialState(clearRequest)
+                Toast.makeText(this@LoginActivity, "Signed out", Toast.LENGTH_SHORT).show()
+                updateUI(null)
+            } catch (e: ClearCredentialException) {
+                Log.e(TAG, "Couldn't clear user credentials: ${e.localizedMessage}")
+            }
+        }
+    }
+     */
+
+    //A stand in if you want to change the view based on the user
+    private fun updateUI(user: FirebaseUser?) {
+        if (user != null) {
+            val intent = Intent(this, CalendarActivity::class.java)
+            startActivity(intent)
+            finish()
+        } else {
+            Log.d(TAG, "User is null, staying on LoginActivity")
         }
     }
 }

@@ -3,7 +3,8 @@
     android:layout_height="match_parent"
     android:background="#9EADDDFF"
     android:gravity="center|top"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:padding="24dp">
 
     <ImageView
         android:layout_width="328dp"
@@ -42,4 +43,7 @@
         android:layout_marginTop="15dp"
         android:text="Sign Up"
         android:textColor="@android:color/holo_blue_dark" />
+
 </LinearLayout>
+
+
