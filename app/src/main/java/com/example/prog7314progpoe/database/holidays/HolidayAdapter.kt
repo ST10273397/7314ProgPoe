@@ -7,8 +7,11 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.prog7314progpoe.R
 
-class HolidayAdapter(private val holidays: List<HolidayModel>?) :
+class HolidayAdapter(private val holidays: List<HolidayModel>) :
     RecyclerView.Adapter<HolidayAdapter.HolidayViewHolder>() {
+    init {
+        println("HOLIDAYS SIZE: ${holidays.size}")
+    }
 
     class HolidayViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val holidayName: TextView = itemView.findViewById(R.id.holidayName)

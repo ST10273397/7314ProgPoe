@@ -1,88 +1,189 @@
 package com.example.prog7314progpoe.database.calendar
 
-
-import android.location.Location
 import com.example.prog7314progpoe.database.holidays.HolidayModel
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
+import com.example.prog7314progpoe.database.user.UserModel
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 
 object FirebaseCalendarDbHelper {
 
     private val db = FirebaseDatabase
         .getInstance("https://chronosync-f3425-default-rtdb.europe-west1.firebasedatabase.app/")
-        .getReference("Calendar")
+        .reference
 
+    private val auth = FirebaseAuth.getInstance()
+
+    // Create new calendar
     fun insertCalendar(
-        holidays: List<HolidayModel>,
+        ownerId: String,
         title: String,
-        location: Location,
-        userEmail: String,
+        holidays: List<HolidayModel>? = null,
         onComplete: () -> Unit = {}
-    ){
-        val key = db.push().key ?: return
+    ) {
+        val key = db.child("calendars").push().key ?: return
+
+        val holidayMap = holidays?.associateBy { it.holidayId ?: db.child("calendars").push().key!! }
 
         val calendar = CalendarModel(
             calendarId = key,
             title = title,
-            holidays = holidays,
-            location = location,
-            userEmail = userEmail
+            ownerId = ownerId,
+            sharedWith = mapOf(ownerId to true),
+            holidays = holidayMap
         )
 
-        db.child(key).setValue(calendar)
-            .addOnCompleteListener { task ->
-                onComplete()
-            }
+        val updates = hashMapOf<String, Any>(
+            "/calendars/$key" to calendar,
+            "/user_calendars/$ownerId/$key" to true
+        )
+
+        db.updateChildren(updates).addOnCompleteListener { onComplete() }
     }
 
-    fun getCalendar(userEmail: String, callback: (CalendarModel?) -> Unit) {
-        db.child(userEmail).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val calendar = snapshot.getValue(CalendarModel::class.java)?.apply {
-                    this.userEmail = snapshot.key ?: ""
-                }
-                callback(calendar)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                callback(null)
-            }
-        })
+    // Share calendar with another user
+    fun shareCalendar(calendarId: String, userId: String, onComplete: () -> Unit = {}) {
+        val updates = hashMapOf<String, Any>(
+            "/calendars/$calendarId/sharedWith/$userId" to true,
+            "/user_calendars/$userId/$calendarId" to true
+        )
+        db.updateChildren(updates).addOnCompleteListener { onComplete() }
     }
 
-    fun getAllCalendars(callback: (List<CalendarModel>) -> Unit) {
-        db.addListenerForSingleValueEvent(object: ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val list = mutableListOf<CalendarModel>()
-                snapshot.children.forEach { child ->
-                    child.getValue(CalendarModel::class.java)?.let { calendar ->
-                        calendar.calendarId = child.key ?:""
-                        list.add(calendar)
+    // Share calendar with another user via email
+    fun shareCalendarByEmail(
+        calendarId: String,
+        targetEmail: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val usersRef = db.child("users")
+
+        // Search for user with matching email
+        usersRef.orderByChild("email").equalTo(targetEmail)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                if (snapshot.exists()) {
+                    // There should only be one user with that email
+                    val userId = snapshot.children.first().key ?: return@addOnSuccessListener
+                    shareCalendar(calendarId, userId) {
+                        onSuccess()
                     }
+                } else {
+                    onError("User with that email not found.")
                 }
-                callback(list)
             }
+            .addOnFailureListener { e ->
+                onError(e.message ?: "Failed to find user.")
+            }
+    }
 
-            override fun onCancelled(error: DatabaseError) {
+    fun getSharedUsers(calendarId: String, onComplete: (List<UserModel>) -> Unit) {
+        val db = FirebaseDatabase.getInstance().reference
+        val usersRef = db.child("users")
+
+        db.child("calendars").child(calendarId).child("sharedWith").get()
+            .addOnSuccessListener { snapshot ->
+                val sharedUserIds = snapshot.children.mapNotNull { it.key }
+                if (sharedUserIds.isEmpty()) {
+                    onComplete(emptyList())
+                    return@addOnSuccessListener
+                }
+
+                val usersList = mutableListOf<UserModel>()
+                var remaining = sharedUserIds.size
+
+                sharedUserIds.forEach { userId ->
+                    usersRef.child(userId).get()
+                        .addOnSuccessListener { userSnap ->
+                            userSnap.getValue(UserModel::class.java)?.let { usersList.add(it) }
+                            remaining--
+                            if (remaining == 0) onComplete(usersList)
+                        }
+                        .addOnFailureListener { remaining--; if (remaining == 0) onComplete(usersList) }
+                }
+            }
+            .addOnFailureListener { onComplete(emptyList()) }
+    }
+
+    /**
+     * Remove a specific user from a shared calendar.
+     */
+    fun removeUserFromCalendar(
+        calendarId: String,
+        userId: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val updates = hashMapOf<String, Any?>(
+            "/calendars/$calendarId/sharedWith/$userId" to null,
+            "/user_calendars/$userId/$calendarId" to null
+        )
+
+        db.updateChildren(updates)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onError(e.message ?: "Failed to remove user.") }
+    }
+
+    /**
+     * Let the current user leave a shared calendar.
+     */
+    fun leaveCalendar(
+        calendarId: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val currentUserId = auth.currentUser?.uid ?: return onError("Not logged in")
+
+        // Prevent the owner from removing themselves
+        db.child("calendars").child(calendarId).child("ownerId").get()
+            .addOnSuccessListener { snapshot ->
+                val ownerId = snapshot.value?.toString()
+                if (ownerId == currentUserId) {
+                    onError("You cannot leave your own calendar.")
+                    return@addOnSuccessListener
+                }
+
+                removeUserFromCalendar(calendarId, currentUserId, onSuccess, onError)
+            }
+            .addOnFailureListener {
+                onError("Error checking calendar ownership: ${it.message}")
+            }
+    }
+
+    // Get all calendars for a user
+    fun getUserCalendars(userId: String, callback: (List<CalendarModel>) -> Unit) {
+        db.child("user_calendars").child(userId).get().addOnSuccessListener { snapshot ->
+            val calendarIds = snapshot.children.mapNotNull { it.key }
+            val calendars = mutableListOf<CalendarModel>()
+            if (calendarIds.isEmpty()) {
                 callback(emptyList())
+                return@addOnSuccessListener
             }
-        })
+
+            calendarIds.forEach { id ->
+                db.child("calendars").child(id).get()
+                    .addOnSuccessListener { calSnap ->
+                        calSnap.getValue(CalendarModel::class.java)?.let { calendars.add(it) }
+                        if (calendars.size == calendarIds.size) callback(calendars)
+                    }
+            }
+        }
     }
 
-    fun updateCalendar(calendarId: String, calendar: CalendarModel, callback: (Boolean) -> Unit) {
-        db.child(calendarId)
-
-        db.setValue(calendar)
-            .addOnSuccessListener { callback(true) }
-            .addOnFailureListener { callback(false) }
+    // Update calendar
+    fun updateCalendar(calendar: CalendarModel, onComplete: (Boolean) -> Unit) {
+        db.child("calendars").child(calendar.calendarId)
+            .setValue(calendar)
+            .addOnSuccessListener { onComplete(true) }
+            .addOnFailureListener { onComplete(false) }
     }
 
-    fun deleteCalendar(calendarId: String, onComplete: () -> Unit = {}) {
-        db.child(calendarId).removeValue()
-            .addOnCompleteListener { task ->
-            onComplete()
-            }
+    // Delete calendar
+    fun deleteCalendar(calendarId: String, ownerId: String, onComplete: () -> Unit = {}) {
+        val updates = hashMapOf<String, Any?>(
+            "/calendars/$calendarId" to null,
+            "/user_calendars/$ownerId/$calendarId" to null
+        )
+        db.updateChildren(updates).addOnCompleteListener { onComplete() }
     }
 }

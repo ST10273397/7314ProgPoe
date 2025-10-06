@@ -14,6 +14,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PROG7314ProgPoe">
         <activity
+            android:name=".CreateEventActivity"
+            android:exported="false" />
+        <activity
+            android:name=".CreateEvent"
+            android:exported="false"
+            android:theme="@style/Theme.PROG7314ProgPoe" />
+        <activity
             android:name=".reglogin.RegisterActivity"
             android:exported="false" />
         <activity

@@ -13,6 +13,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.lifecycle.lifecycleScope
+import com.example.prog7314progpoe.database.user.UserModel
 import com.example.prog7314progpoe.reglogin.LoginActivity
 import com.example.prog7314progpoe.reglogin.RegisterActivity
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
@@ -24,6 +25,11 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.launch
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.database.FirebaseDatabase
 
 class MainActivity : AppCompatActivity() {
 
@@ -44,6 +50,13 @@ class MainActivity : AppCompatActivity() {
             .addCredentialOption(googleIdOption)
             .build()
     }
+
+    private lateinit var googleSignInClient: GoogleSignInClient
+    private val RC_SIGN_IN = 9001 // Request code
+
+    private val db = FirebaseDatabase
+        .getInstance("https://chronosync-f3425-default-rtdb.europe-west1.firebasedatabase.app/")
+        .getReference("users")
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -76,6 +89,33 @@ class MainActivity : AppCompatActivity() {
         googleSignUpBtn.setOnClickListener {
             launchGoogleSignIn()
         }
+
+        // Configure Google Sign In
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.default_web_client_id)) // From Google Services JSON
+            .requestEmail()
+            .build()
+
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
+
+        googleLoginBtn.setOnClickListener {
+            val signInIntent = googleSignInClient.signInIntent
+            startActivityForResult(signInIntent, RC_SIGN_IN)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == RC_SIGN_IN) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            try {
+                val account = task.getResult(ApiException::class.java)!!
+                firebaseAuthWithGoogle(account.idToken!!)
+            } catch (e: ApiException) {
+                Toast.makeText(this, "Google sign in failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun launchGoogleSignIn() {
@@ -97,7 +137,12 @@ class MainActivity : AppCompatActivity() {
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
                     Log.d(TAG, "signInWithCredential:success")
-                    updateUI(auth.currentUser)
+                    val user = auth.currentUser
+                    // Make sure user exists in your Realtime Database
+                    if (user != null) {
+                        createUserInDatabaseIfNotExists(user)
+                    }
+                    updateUI(user)
                 } else {
                     Log.w(TAG, "signInWithCredential:failure", task.exception)
                     updateUI(null)
@@ -125,5 +170,37 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "User is null, staying on LoginActivity")
         }
     }
+
+    fun createUserInDatabaseIfNotExists(user: FirebaseUser, onComplete: (() -> Unit)? = null) {
+        db.child(user.uid).get().addOnSuccessListener { snapshot ->
+            if (!snapshot.exists()) {
+                val newUser = UserModel(
+                    userId = user.uid,
+                    email = user.email ?: "",
+                    firstName = user.displayName ?: "",
+                    lastName = "", // Optional: parse from displayName if you want
+                    location = "",
+                    dateOfBirth = null
+                )
+                db.child(user.uid).setValue(newUser).addOnCompleteListener {
+                    onComplete?.invoke()
+                }
+            } else {
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    /*
+    Use this to assign the current user to what they have made.
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+    FirebaseCalendarDbHelper.insertCalendar(
+    ownerId = currentUserId,
+    title = "My Calendar",
+    holidays = null
+    ) {
+        // Calendar created
+    }
+    */
 
 }

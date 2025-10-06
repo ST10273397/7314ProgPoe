@@ -1,6 +1,5 @@
 package com.example.prog7314progpoe.database.user
 
-import android.location.Location
 import com.example.prog7314progpoe.database.holidays.HolidayModel.DateInfo
 
 data class UserModel(
@@ -9,7 +8,7 @@ data class UserModel(
     var firstName: String = "",
     var lastName: String = " ",
     var password: String = " ",
-    var dateOfBirth: DateInfo,
+    var dateOfBirth: DateInfo?,
     var location: String = " ",
 ) {
 }

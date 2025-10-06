@@ -1,5 +1,13 @@
 package com.example.prog7314progpoe.database.holidays
 
+data class HolidayResponse(
+    val response: HolidayList
+)
+
+data class HolidayList(
+    val holidays: List<HolidayModel>? = emptyList()
+)
+
 data class HolidayModel(
     var holidayId: String, //Mapping to the firebase key
     val name: String,

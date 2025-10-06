@@ -6,29 +6,16 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.credentials.ClearCredentialStateRequest
-import androidx.credentials.Credential
-import androidx.credentials.CredentialManager
-import androidx.credentials.CustomCredential
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.ClearCredentialException
-import androidx.lifecycle.lifecycleScope
 import com.example.prog7314progpoe.CalendarActivity
 import com.example.prog7314progpoe.R
 import com.example.prog7314progpoe.database.user.FirebaseUserDbHelper
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
-import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
@@ -84,7 +71,7 @@ class LoginActivity : AppCompatActivity() {
             }
         }
     }
-     */
+    */
 
     //A stand in if you want to change the view based on the user
     private fun updateUI(user: FirebaseUser?) {

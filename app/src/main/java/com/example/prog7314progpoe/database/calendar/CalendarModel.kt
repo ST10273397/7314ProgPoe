@@ -4,16 +4,12 @@ import android.location.Location
 import com.example.prog7314progpoe.database.holidays.HolidayModel
 
 data class CalendarModel(
-    var calendarId: String, //Using Firebase Key as identifier
-    val title: String,
-    val holidays: List<HolidayModel>?,
-    val location: Location?,
-    var userEmail: String
+    var calendarId: String = "",
+    val title: String = "",
+    val ownerId: String = "",
+    val sharedWith: Map<String, Boolean>? = null,
+    val holidays: Map<String, HolidayModel>? = null
 ){
-    constructor() : this("", "", null, null, "")
-
-    data class CalendarResponse(
-        val response: CalendarModel
-    )
+    constructor() : this("", "", "", null, null)
 }
 

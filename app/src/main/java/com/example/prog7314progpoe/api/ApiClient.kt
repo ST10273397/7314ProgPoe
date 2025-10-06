@@ -1,6 +1,8 @@
 package com.example.prog7314progpoe.api
 
 import com.example.prog7314progpoe.api.CalendarificApi
+import retrofit2.Call
+import retrofit2.Callback
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 

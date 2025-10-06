@@ -1,82 +1,66 @@
 package com.example.prog7314progpoe.database.holidays
 
-import com.example.prog7314progpoe.database.calendar.FirebaseCalendarDbHelper
-import com.example.prog7314progpoe.database.holidays.HolidayModel.DateInfo
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
+import com.example.prog7314progpoe.database.calendar.CalendarModel
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 
 object FirebaseHolidayDbHelper {
 
     private val db = FirebaseDatabase
         .getInstance("https://chronosync-f3425-default-rtdb.europe-west1.firebasedatabase.app/")
-        .getReference("Holiday")
+        .reference
 
-    fun insertHoliday(
-        name: String,
-        desc: String,
-        date: DateInfo?,
-        dateStart: DateInfo?,  //Optional if holiday extends past initial day
-        dateEnd: DateInfo?,
-        timeStart: Long,
-        timeEnd: Long,
-        repeat: List<String>? = listOf("Daily", "Weekly", "Monthly", "Annually"),
-        type: List<String>?, // Example: ["National holiday", "Religious"]
+    // Add a holiday to a calendar
+    fun addHoliday(
+        calendarId: String,
+        holiday: HolidayModel,
         onComplete: () -> Unit = {}
-    ){
-        val key = db.push().key ?: return
+    ) {
+        val holidayId = holiday.holidayId.ifEmpty { db.child("calendars/$calendarId/holidays").push().key!! }
+        holiday.holidayId = holidayId
 
-        val holiday = HolidayModel(
-            holidayId = key,
-            name = name,
-            desc = desc,
-            date = date,
-            dateStart = dateStart,
-            dateEnd = dateEnd,
-            timeStart = timeStart,
-            timeEnd = timeEnd,
-            repeat = repeat,
-            type = type
-        )
-
-        db.child(key).setValue(holiday)
-            .addOnCompleteListener { task ->
-                onComplete()
-            }
+        db.child("calendars").child(calendarId).child("holidays").child(holidayId)
+            .setValue(holiday)
+            .addOnCompleteListener { onComplete() }
     }
 
-    fun getAllHolidays(callback: (List<HolidayModel>) -> Unit) {
-        db.addListenerForSingleValueEvent(object: ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val list = mutableListOf<HolidayModel>()
-                snapshot.children.forEach { child ->
-                    child.getValue(HolidayModel::class.java)?.let {holiday ->
-                        holiday.holidayId = child.key ?: ""
-                        list.add(holiday)
-                    }
-                }
-                callback(list)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                callback(emptyList())
-            }
-        })
-
-        fun updateHoliday(holidayId: String, holiday: HolidayModel, callback: (Boolean) -> Unit) {
-            db.child(holidayId)
-
-            db.setValue(holiday)
-                .addOnSuccessListener { callback(true) }
-                .addOnFailureListener { callback(false) }
+    // Update an existing holiday
+    fun updateHoliday(
+        calendarId: String,
+        holiday: HolidayModel,
+        onComplete: (Boolean) -> Unit
+    ) {
+        if (holiday.holidayId.isEmpty()) {
+            onComplete(false)
+            return
         }
 
-        fun deleteHoliday(holidayId: String, onComplete: () -> Unit = {}) {
-            db.child(holidayId).removeValue()
-                .addOnCompleteListener { task ->
-                    onComplete()
-                }
-        }
+        db.child("calendars").child(calendarId).child("holidays").child(holiday.holidayId)
+            .setValue(holiday)
+            .addOnSuccessListener { onComplete(true) }
+            .addOnFailureListener { onComplete(false) }
+    }
+
+    // Delete a holiday from a calendar
+    fun deleteHoliday(
+        calendarId: String,
+        holidayId: String,
+        onComplete: () -> Unit = {}
+    ) {
+        db.child("calendars").child(calendarId).child("holidays").child(holidayId)
+            .removeValue()
+            .addOnCompleteListener { onComplete() }
+    }
+
+    // Get all holidays for a specific calendar
+    fun getAllHolidays(
+        calendarId: String,
+        callback: (List<HolidayModel>) -> Unit
+    ) {
+        db.child("calendars").child(calendarId).child("holidays").get()
+            .addOnSuccessListener { snapshot ->
+                val holidays = snapshot.children.mapNotNull { it.getValue(HolidayModel::class.java) }
+                callback(holidays)
+            }
+            .addOnFailureListener { callback(emptyList()) }
     }
 }
